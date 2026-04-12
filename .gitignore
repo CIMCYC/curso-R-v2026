@@ -1,0 +1,9 @@
+# System files
+.DS_Store
+.Rhistory
+.RData
+.Rproj.user/
+
+# Solutions (publish after each session)
+exercises_solutions/
+homework/*/scripts/*_solved.R
