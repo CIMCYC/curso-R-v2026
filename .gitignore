@@ -5,5 +5,9 @@
 .Rproj.user/
 
 # Solutions (publish after each session)
-exercises_solutions/
+# Day 1 solutions: published
+exercises_solutions/02_*
+exercises_solutions/03_*
+exercises_solutions/04_*
+exercises_solutions/05_*
 homework/*/scripts/*_solved.R
