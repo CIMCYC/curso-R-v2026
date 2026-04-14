@@ -1,0 +1,333 @@
+---
+title: "Buenas prácticas en R"
+subtitle: "Curso: Introducción a programación y análisis de datos en R"
+author:
+  - name: "Efrain Garcia Sanchez & Filip Andras"
+    affiliations:
+      - name: "CIMCYC — Universidad de Granada"
+date: "2026-04-16"
+date-format: "D MMMM YYYY"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    code-fold: false
+    self-contained: true
+    page-layout: full
+    include-in-header:
+      - text: '<style>pre { white-space: pre-wrap; word-wrap: break-word; } .quarto-title-block, #quarto-content { max-width: 1100px; margin: auto; } #TOC { max-width: 220px; }</style>'
+execute:
+  echo: true
+  eval: false
+  warning: false
+  message: false
+---
+
+# ¿Por qué buenas prácticas?
+
+Imagina que vuelves a un análisis **6 meses después**, o que un revisor te pide
+que modifiques una figura, o que un colega quiere replicar tu análisis en su
+ordenador. Si tu código no está bien organizado, vas a perder horas (o días)
+intentando entender qué hiciste.
+
+Entiende esta guía como una inversión en tu **yo del futuro**:
+
+- **Reproducibilidad** — cualquiera puede repetir tu análisis y obtener los mismos resultados
+- **Transparencia** — cada paso queda documentado en el código
+- **Portabilidad** — tu proyecto funciona en cualquier ordenador
+- **Colaboración** — otros pueden entender y contribuir a tu trabajo
+
+::: {.callout-tip}
+## Open Science
+Un proyecto bien organizado se puede subir tal cual a [**OSF**](https://osf.io/)
+(Open Science Framework) o a un repositorio de GitHub. La estructura de
+carpetas, el README, los scripts comentados y los datos en `raw_data/`
+forman un paquete completo que cumple con los estándares de ciencia abierta.
+:::
+
+# Organización de proyectos
+
+## Un proyecto = una carpeta
+
+Cada estudio, artículo o análisis debería tener su propia carpeta con una estructura consistente:
+
+```
+mi_proyecto/
+├── mi_proyecto.Rproj      Proyecto RStudio (fija el directorio de trabajo)
+├── README.txt              Descripcion del proyecto, variables, instrucciones
+├── data/
+│   ├── raw_data/           Datos originales (NUNCA modificar)
+│   └── processed_data/     Datos limpios/transformados (generados por scripts)
+├── scripts/                Scripts de R numerados (01_preprocessing.R, 02_analysis.R...)
+├── output/                 Tablas, figuras y resultados exportados
+├── docs/                   Documentacion adicional (protocolos, pre-registros, manuales)
+└── archive/                Versiones antiguas de scripts o datos (por si acaso)
+```
+
+| Carpeta | Contenido | ¿Quién la modifica? |
+|---------|-----------|---------------------|
+| `data/raw_data/` | Datos originales tal como los recibiste | **Nadie** (solo lectura) |
+| `data/processed_data/` | Datos después de limpiar/transformar | Generada por tus scripts |
+| `scripts/` | Código R numerado por orden de ejecución | Tú |
+| `output/` | Figuras (.png), tablas (.csv), reportes (.html) | Generada por tus scripts |
+| `docs/` | Pre-registro, protocolo, codebook, manuales de escalas | Tú (documentación) |
+| `archive/` | Versiones antiguas que no quieres borrar | Tú (por seguridad) |
+
+## Usar `.Rproj`
+
+- Crea un proyecto RStudio: **File > New Project > Existing Directory**
+- El `.Rproj` fija el **directorio de trabajo** automáticamente
+- Permite usar **rutas relativas** (portabilidad entre ordenadores)
+- **Nunca** abras un script directamente — siempre abre el `.Rproj`
+
+```r
+# MAL: ruta absoluta (solo funciona en tu ordenador)
+read_csv("/Users/Filip/Desktop/mi_proyecto/data/raw_data/datos.csv")
+
+# BIEN: ruta relativa (funciona en cualquier ordenador)
+read_csv("data/raw_data/datos.csv")
+```
+
+## No toques los datos raw
+
+Los archivos en `data/raw_data/` son de **solo lectura**. Si necesitas limpiar o transformar datos, guarda el resultado en `data/processed_data/`.
+
+Así siempre puedes volver al punto de partida.
+
+# Estructura de un script
+
+## Encabezado
+
+Todo script debería empezar con:
+
+```r
+# ============================================================
+# Titulo del script
+# Proyecto: nombre del proyecto
+# Autor: tu nombre
+# Fecha: 2026-04-16
+# ============================================================
+```
+
+## Paquetes al principio
+
+Carga **todos** los paquetes al inicio del script, nunca a mitad del código:
+
+```r
+# --- paquetes ---
+library(tidyverse)
+library(afex)
+library(emmeans)
+library(effectsize)
+library(report)
+```
+
+Para paquetes que usas una sola vez, usa `paquete::funcion()`:
+
+```r
+# no hace falta cargar todo el paquete
+sjPlot::tab_corr(datos)
+performance::check_model(modelo)
+```
+
+## Opciones globales
+
+```r
+# --- opciones ---
+options(scipen = 999)    # sin notacion cientifica
+options(width  = 120)    # anchura de consola (evita truncar tablas)
+```
+
+## Cargar datos
+
+```r
+# --- cargar datos ---
+data_trial    <- read_csv("data/raw_data/data_clinical_trial.csv")
+data_followup <- read_csv("data/raw_data/data_clinical_trial_followup.csv")
+sites         <- read_csv("data/raw_data/data_sites.csv")
+```
+
+## sessionInfo() al final
+
+Incluye `sessionInfo()` al final de cada script. Registra la versión de R, los paquetes cargados y el sistema operativo — esencial para reproducibilidad.
+
+```r
+# --- al final del script ---
+sessionInfo()
+```
+
+# Convenciones de código
+
+## Nombres de variables: `snake_case`
+
+```r
+# BIEN: snake_case (palabras separadas por guion bajo)
+anxiety_pre
+media_por_grupo
+datos_preprocesados
+
+# MAL: otros estilos
+anxietyPre         # camelCase
+MediaPorGrupo      # PascalCase
+anxiety.pre        # puntos (confuso con metodos S3)
+anxiety-pre        # guiones (no es un nombre valido en R)
+```
+
+## Nombres descriptivos
+
+```r
+# BIEN: nombres que explican que contiene el objeto
+datos_preprocesados <- data_trial |> ...
+resumen_por_grupo   <- data_trial |> group_by(group) |> ...
+modelo_simple       <- lm(anxiety_post ~ n_sessions, data = cbt)
+
+# MAL: nombres crípticos
+d  <- data_trial |> ...
+x  <- data_trial |> group_by(group) |> ...
+m1 <- lm(anxiety_post ~ n_sessions, data = cbt)
+```
+
+## Asignar resultados a objetos
+
+Siempre guarda el resultado de un pipeline en un objeto con nombre descriptivo:
+
+```r
+# BIEN: se guarda y se puede reutilizar
+resultado <- data_trial |>
+  filter(group == "CBT") |>
+  summarise(media = mean(anxiety_post))
+resultado
+
+# MAL: el resultado se muestra en consola y se pierde
+data_trial |>
+  filter(group == "CBT") |>
+  summarise(media = mean(anxiety_post))
+```
+
+## Comentar el código
+
+Los comentarios explican el **porqué**, no el **qué**:
+
+```r
+# BIEN: explica la razon
+# excluir control porque no recibio tratamiento
+datos_tratamiento <- data_trial |>
+  filter(group != "control")
+
+# MAL: repite lo que ya dice el codigo
+# filtrar datos
+datos_tratamiento <- data_trial |>
+  filter(group != "control")
+```
+
+## Espaciado y legibilidad
+
+```r
+# BIEN: espacios alrededor de operadores y despues de comas
+media <- mean(x, na.rm = TRUE)
+datos |> filter(age > 40, group == "CBT")
+
+# MAL: sin espacios
+media<-mean(x,na.rm=TRUE)
+datos|>filter(age>40,group=="CBT")
+```
+
+## Argumentos con nombre
+
+En funciones con muchos argumentos, usa nombres explícitos:
+
+```r
+# BIEN: claro que hace cada argumento
+cor.test(x = data$anxiety_post,
+         y = data$wellbeing_post,
+         method = "pearson")
+
+# MENOS CLARO: depende del orden
+cor.test(data$anxiety_post, data$wellbeing_post, "pearson")
+```
+
+## Pipe nativo `|>`
+
+Usa el pipe nativo de R (`|>`) en vez del pipe de magrittr (`%>%`):
+
+```r
+# BIEN: pipe nativo (R 4.1+)
+data_trial |>
+  filter(group == "CBT") |>
+  summarise(media = mean(anxiety_post))
+
+# EVITAR: pipe de magrittr (legacy)
+data_trial %>%
+  filter(group == "CBT") %>%
+  summarise(media = mean(anxiety_post))
+```
+
+Para habilitar el atajo `Cmd/Ctrl + Shift + M`:
+**Tools > Global Options > Code > Use native pipe operator**
+
+## `select()` en varias líneas
+
+Cuando seleccionas muchas columnas, pon cada una en su propia línea:
+
+```r
+# BIEN: legible
+datos <- data_trial |>
+  select(patient_id,
+         group,
+         anxiety_pre,
+         anxiety_post,
+         depression_pre)
+
+# MENOS LEGIBLE: todo en una linea
+datos <- data_trial |> select(patient_id, group, anxiety_pre, anxiety_post, depression_pre)
+```
+
+# Instalar paquetes
+
+## Solo una vez
+
+```r
+# ejecutar UNA VEZ, luego comentar
+# install.packages("tidyverse")
+# install.packages("afex")
+# install.packages("emmeans")
+```
+
+Nunca dejes `install.packages()` sin comentar en un script compartido — se ejecutaría cada vez que alguien ejecuta el script.
+
+## Verificar que un paquete está instalado
+
+```r
+if (!require("tidyverse")) install.packages("tidyverse")
+library(tidyverse)
+```
+
+# Limpiar el environment
+
+Al inicio de una sesión de análisis, limpia el environment para evitar conflictos con objetos de sesiones anteriores:
+
+```r
+rm(list = ls())
+```
+
+O usa el atajo: `Cmd/Ctrl + Shift + 0`, el icono de la escoba, o **Session > Restart R**.
+
+# Exportar datos
+
+| Formato | Ejemplo |
+|---------|---------|
+| **CSV** | `write_csv(datos, "output/my_data.csv")` |
+| **RDS** | `write_rds(modelo, "output/my_model.rds")` |
+| **Excel** | `writexl::write_xlsx(datos, "output/results.xlsx")` |
+| **SPSS** | `haven::write_sav(datos, "output/data.sav")` |
+
+**RDS** guarda cualquier objeto de R (data frames, modelos, listas) preservando todos los atributos. Útil cuando un modelo tarda mucho en ajustar.
+
+# Recursos
+
+- [Posit Cheatsheets](https://posit.co/resources/cheatsheets/) — resúmenes visuales de tidyverse, ggplot2, etc.
+- [R for Data Science](https://r4ds.hadley.nz/) — Wickham et al. (gratuito)
+- [Learning Statistics with R](https://learningstatisticswithr.com/) — Navarro, D. (gratuito)
+- [fasteR](https://github.com/matloff/fasteR) — tutorial interactivo de R base
+Para más recursos (paquetes avanzados, cursos, libros), ver `referencias.md` del curso.

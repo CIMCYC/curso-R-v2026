@@ -1,205 +1,193 @@
 # ============================================================
-# EJERCICIOS - DIA 3 (versión ESTUDIANTE)
-# Curso: Introduccion a programacion y análisis de datos en R
+# EJERCICIOS - DIA 3 (version ESTUDIANTE)
+# Curso: Introduccion a programacion y analisis de datos en R
 # Efrain Garcia Sanchez & Filip Andras
 # CIMCYC - Universidad de Granada
 # ============================================================
 #
 # Como usar este script:
 #   1. Lee el enunciado de cada ejercicio (lineas comentadas).
-#   2. Escribe tu propia solución en un nuevo script o en las
-#      lineas en blanco debajo del enunciado.
-#   3. Al final de cada ejercicio encontraras la SOLUCION de
-#      referencia. No mires la solución hasta intentarlo.
+#   2. Escribe tu codigo donde dice "# TU_CODIGO_AQUI".
+#   3. Las soluciones se muestran en la presentacion.
+
+# --- Instalar paquetes (solo la primera vez, luego comentar) ---
+# install.packages("tidyverse")
+# install.packages("psych")
+# install.packages("sjPlot")
+# install.packages("effectsize")
+# install.packages("report")
 
 
 # ============================================================
-# CARGAR PAQUETES Y DATOS
-# ============================================================
-
-# 1. cargar tidyverse
-library(tidyverse)
-
-# 2. intenta leer el dataset. ¿Funciona? ¿Por que?
-data_trial <- read_csv("data/data_clinical_trial.csv")
-
-# 3. comprueba tu directorio de trabajo
-getwd()
-
-# si la ruta no funciona, ajustala. Pista: si estas en
-# exercises/scripts/, necesitas subir dos niveles con ../../
-# data_trial <- read_csv("../../data/data_clinical_trial.csv")
-
-# 4. explora el dataset
-View(data_trial)
-glimpse(data_trial)
-
-# 5. cuantos pacientes por grupo?
-table(data_trial$group)
-
-
-# ============================================================
-# BLOQUE 1
+# BLOQUE 1 — group_by() + summarise(), pipelines, write_csv()
+# (Day3_bloque1)
 # ============================================================
 
 # ------------------------------------------------------------
-# EJERCICIO: Mini-ejercicio — tu primer pivot_longer()
+# Ejercicio 1 — practicar group_by() + summarise()
+# (Bloque 1, slide ~11)
+# Tiempo: 20 minutos
 # ------------------------------------------------------------
-# Tiempo: 5 minutos
 #
+# 1. Limpia tu environment (rm(list = ls())) + Cmd/Ctrl + Shift + 0
+# 2. Carga los paquetes necesarios
+# 3. Carga los datos (data_trial, data_followup)
+# 4. Calcula la media de depression_pre y depression_post y n()
+#    por grupo Y sexo. Que combinacion muestra mayor cambio?
+# 5. Que grupo tiene la mediana mas alta de numero de sesiones (n_sessions)?
+#    Recuerda na.rm = TRUE
+# 6. Como se compara el bienestar medio (wellbeing_pre, wellbeing_post,
+#    wellbeing_followup) entre hombres y mujeres?
+
+# TU_CODIGO_AQUI
+
+
+# ------------------------------------------------------------
+# Ejercicio 2 — construye tu pipeline de preprocesado
+# (Bloque 1, slide ~21)
+# Tiempo: 20 minutos
+# ------------------------------------------------------------
+#
+# Los datos ya estan cargados (data_trial, data_followup)
+#
+# 1. Carga sites con read_csv()
+# 2. Une data_trial con data_followup (por patient_id) y con sites (por site_id)
+# 3. Crea una variable mejora = anxiety_pre - anxiety_post
+#    y otra mejora_followup = anxiety_pre - anxiety_followup
+# 4. Clasifica la mejora con if_else(): "mejora" si mejora > 0, "empeora" si no
+# 5. Clasifica la gravedad post con case_when()
+#    (GAD-7: <= 4 minima, <= 9 leve, <= 14 moderada, resto grave)
+# 6. Cuenta cuantos pacientes mejoran vs empeoran por grupo (count())
+# 7. Guarda los datos preprocesados - que funcion necesitas? en que carpeta?
+#
+# Opcional: renombra rosenberg -> self_esteem y ucla -> loneliness
+#           (pre, post Y followup), reordena followup despues de post
+
+# TU_CODIGO_AQUI
+
+
+
+# ============================================================
+# BLOQUE 2 — pivot_longer() y pivot_wider()
+# (Day3_bloque2)
+# ============================================================
+
+# ------------------------------------------------------------
+# Ejercicio 3 — tu primer pivot_longer()
+# (Bloque 2, slide ~11)
+# Tiempo: 5 minutos
+# ------------------------------------------------------------
 #
 # Tienes este tibble en formato ancho:
-#
-#
-#
-# 1. Usa `pivot_longer()` para convertirlo a formato largo, donde las columnas `dia_*` se apilen en una sola columna llamada `día` y los valores en una columna llamada `puntuacion`.
-# 2. ¿Cuántas filas tiene el resultado?
+datos_ancho <- tibble::tibble(
+  paciente = 1:3,
+  dia_1    = c(10, 8, 12),
+  dia_2    = c(7, 6, 9),
+  dia_3    = c(5, 4, 7)
+)
+# 1. Usa pivot_longer() para convertirlo a formato largo
+#    (columnas dia_* -> "dia" y valores -> "puntuacion")
+# 2. Cuantas filas tiene el resultado?
 
-# Tu solución aquí:
+# TU_CODIGO_AQUI
 
 
 # ------------------------------------------------------------
-# EJERCICIO: Reestructurar datos de pacientes
+# Ejercicio 4 — reestructurar datos de bienestar con seguimiento
+# (Bloque 2, slide ~18)
+# Tiempo: 20 minutos
 # ------------------------------------------------------------
-# Tiempo: 15 minutos
 #
+# Usamos los datos preprocesados del bloque anterior
+# (data/processed_data/preprocessed_data.csv)
 #
-# 1. Toma `data_trial` y filtra para el grupo **"CBT"**
-# 2. Selecciona `patient_id`, `group`, `anxiety_pre`, `anxiety_post`
-# 3. Usa `pivot_longer()` para convertir `anxiety_pre` y `anxiety_post` en formato largo (columnas: `momento` y `anxiety`)
-# 4. ¿Cuántas filas tiene el resultado?
-# 5. *Bonus*: Calcula la media de `anxiety` por `group` y `momento` usando `group_by()` + `summarise()`
-#
-# Plantilla (copiala y completa los huecos):
-#
-#   # 1-2. filtrar y seleccionar
-#   trial_long <- data_trial |>
-#     filter(# TU_CODIGO_AQUI) |>
-#     select(patient_id, group, anxiety_pre, anxiety_post)
-#   
-#   # 3. convertir a formato largo
-#   trial_long |>
-#     pivot_longer(
-#       cols      = # TU_CODIGO_AQUI,
-#       names_to  = "momento",
-#       values_to = "anxiety"
-#     )
-#
+# 1. Carga los datos preprocesados
+# 2. Selecciona patient_id, group, wellbeing_pre, wellbeing_post, wellbeing_followup
+# 3. Usa pivot_longer() para crear formato largo (momento y wellbeing)
+#    Pista: usa names_prefix = "wellbeing_"
+# 4. Ordena los niveles con factor(momento, levels = c("pre", "post", "followup"))
+# 5. Cuantas filas tiene el resultado?
+# 6. Bonus: media de wellbeing por group y momento
 
-# Tu solución aquí:
+# TU_CODIGO_AQUI
 
 
 # ============================================================
-# BLOQUE 2
+# BLOQUE 3 — Estadistica descriptiva, normalidad, correlacion
+# (Day3_bloque3)
 # ============================================================
 
+# --- Partimos del dataset procesado ---
+# data_processed <- read_csv("data/processed_data/preprocessed_data.csv")
+
+
 # ------------------------------------------------------------
-# EJERCICIO: Mini-ejercicio — mediana y cuartiles
+# Ejercicio 5 — descriptivos por grupo
+# (Bloque 3, slide ~10)
+# Tiempo: 10 minutos
 # ------------------------------------------------------------
+#
+# 1. Elige una variable dependiente (ansiedad, depresion, bienestar,
+#    autoestima o soledad)
+# 2. Calcula una medida de tendencia central y una de dispersion,
+#    mas el n(), agrupados por group y sex, para el momento
+#    de tratamiento que quieras (pre/post/followup)
+# 3. Hay diferencias entre hombres y mujeres dentro de cada grupo?
+
+# TU_CODIGO_AQUI
+
+
+# ------------------------------------------------------------
+# Ejercicio 6 — cuartiles y rango intercuartilico
+# (Bloque 3, slide ~12)
 # Tiempo: 5 minutos
+# ------------------------------------------------------------
 #
-#
-# Usando `data_trial`, calcula para la variable `anxiety_pre`:
-#
-# 1. La **mediana** con `median()`
-# 2. Los cuartiles Q1 y Q3 con `quantile()` (probabilidades 0.25 y 0.75)
-# 3. El **rango intercuartílico** (IQR) usando `IQR()`
-# 4. Compara con la **media** y la **desviación típica**
+# Para anxiety_pre, calcula:
+# 1. Mediana
+# 2. Q1 y Q3 con quantile(probs = c(0.25, 0.75))
+# 3. IQR
 
-# Tu solución aquí:
+# TU_CODIGO_AQUI
 
 
 # ------------------------------------------------------------
-# EJERCICIO: Explorar el ensayo clínico
+# Ejercicio 6b — histograma + boxplot: pre vs post
+# (Bloque 3, slide ~14)
 # ------------------------------------------------------------
-# Tiempo: 15 minutos
-#
-#
-# 1. Calcula media y DT de `anxiety_post` por `sex`
-# 2. Comprueba la normalidad de `anxiety_post` en el grupo **pharmacological**
-# 3. Calcula la correlación entre `anxiety_post` y `age`. ¿Es significativa?
-# 4. Calcula la correlación entre `anxiety_pre` y `anxiety_post`. ¿Qué esperas encontrar?
-#
-# Plantilla (copiala y completa los huecos):
-#
-#   # 1. descriptivos por sexo
-#   data_trial |>
-#     group_by(# TU_CODIGO_AQUI) |>
-#     summarise(
-#       media = # TU_CODIGO_AQUI,
-#       dt    = # TU_CODIGO_AQUI
-#     )
-#   
-#   # 2. normalidad en grupo farmacologico
-#   grupo_farm <- data_trial |> filter(# TU_CODIGO_AQUI)
-#   shapiro.test(# TU_CODIGO_AQUI)
-#   
-#   # 3. correlación ansiedad post y edad
-#   cor.test(# TU_CODIGO_AQUI, # TU_CODIGO_AQUI)
-#   
-#   # 4. correlación ansiedad pre y post
-#   cor.test(# TU_CODIGO_AQUI, # TU_CODIGO_AQUI)
-#
+# Crea histogramas y boxplots de anxiety_pre y anxiety_post
 
-# Tu solución aquí:
+# TU_CODIGO_AQUI
 
-
-# ============================================================
-# BLOQUE 3
-# ============================================================
 
 # ------------------------------------------------------------
-# EJERCICIO: Mini-ejercicio — CBT vs pharmacological
+# Ejercicio 7 — correlacion de Spearman
+# (Bloque 3, slide ~26)
+# Tiempo: 2 minutos
 # ------------------------------------------------------------
+#
+# Usa ?cor o busca en internet: que argumento hay que cambiar
+# en cor() para calcular Spearman en vez de Pearson?
+
+# TU_CODIGO_AQUI
+
+
+# ------------------------------------------------------------
+# Ejercicio 8 — correlacion edad y ansiedad
+# (Bloque 3, slide ~29)
 # Tiempo: 5 minutos
-#
-#
-# En el dataset `data_trial`:
-#
-# 1. Filtra solo los grupos `"CBT"` y `"pharmacological"` (guárdalo en `trial_cbt_pharma`)
-# 2. Ejecuta un t-test independiente comparando `anxiety_post` entre ambos grupos
-# 3. Genera el resumen APA con `report()`
-
-# Tu solución aquí:
-
-
 # ------------------------------------------------------------
-# EJERCICIO: Analizar el ensayo clínico
-# ------------------------------------------------------------
-# Tiempo: 30 minutos
 #
-#
-# 1. Ejecuta un t-test de **una muestra** para comprobar si la ansiedad post-tratamiento es significativamente menor que 12
-# 2. Compara `anxiety_post` entre CBT y pharmacological con un t-test de **muestras independientes**
-# 3. Ejecuta un t-test **pareado** comparando pre vs. post en el grupo pharmacological
-# 4. Calcula el tamaño del efecto (d de Cohen) para la comparación pareada
-# 5. Usa `report()` para generar el resumen APA del t-test pareado
-# 6. *Bonus*: ¿Qué grupo muestra el mayor cambio pre→post?
-#
-# Plantilla (copiala y completa los huecos):
-#
-#   # --- 1. t-test de una muestra (mu = 12) --------------------------------------
-#   # TU_CODIGO_AQUI
-#   
-#   # --- 2. t-test independiente: CBT vs. pharmacological ------------------------
-#   trial_pharma_cbt <- data_trial |>
-#     filter(group %in% c("CBT", "pharmacological"))
-#   
-#   # TU_CODIGO_AQUI
-#   
-#   # --- 3. t-test pareado: pre vs. post en grupo pharmacological ----------------
-#   trial_pharma_long <- trial_long |> filter(group == "pharmacological")
-#   
-#   # TU_CODIGO_AQUI
-#   
-#   # --- 4. d de Cohen para la comparacion pareada --------------------------------
-#   # TU_CODIGO_AQUI
-#   
-#   # --- 5. Reportar el t-test pareado con report() --------------------------------
-#   # TU_CODIGO_AQUI
-#   
-#   # --- Bonus: cambio medio pre -> post por grupo --------------------------------
-#   # TU_CODIGO_AQUI
-#
+# 1. Visualiza la distribucion de age con hist()
+# 2. Comprueba la normalidad de age con shapiro.test()
+# 3. Es normal? Que tipo de correlacion debemos usar?
+# 4. Calcula la correlacion entre age y anxiety_post
+# 5. Genera el resumen APA con report()
 
-# Tu solución aquí:
+# TU_CODIGO_AQUI
+
+
+# ============================================================
+# SESSION INFO
+# ============================================================
+sessionInfo()
