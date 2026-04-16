@@ -4,8 +4,5 @@
 .RData
 .Rproj.user/
 
-# Day 4 solutions (publish after class)
-exercises/scripts/04_day4_exercises_solutions.R
-
 # Homework solved versions
 homework/*/scripts/*_solved.R
