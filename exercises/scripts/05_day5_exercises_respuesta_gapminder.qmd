@@ -1,0 +1,117 @@
+---
+title: "Informe sobre desarrollo y esperanza de vida"
+author: "Tu nombre"
+format:
+  html:
+    toc: true
+    embed-resources: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+# Informe sobre desarrollo y esperanza de vida
+
+## Carga y exploración de los datos
+
+```{r}
+# En caso de no tenerlo instalado
+# install.packages("tidyverse")
+# install.packages("gapminder")
+# install.packages("easystats")
+
+# Cargar paquetes
+library(tidyverse)
+library(gapminder)
+library(easystats)
+
+# visualizar los datos
+glimpse(gapminder)
+head(gapminder)
+```
+
+## Esperanza de vida media por continente
+
+```{r}
+vida_continent <- gapminder |>
+  group_by(continent) |>
+  summarise(
+    vida_media = mean(lifeExp, na.rm = TRUE),
+    .groups = "drop")
+
+vida_continent |>
+  knitr::kable()
+```
+
+## Los 10 países más longevos
+
+```{r}
+top_10_longevos <- gapminder |>
+  group_by(country) |>
+  summarise(
+    vida_media = mean(lifeExp, na.rm = TRUE),
+    .groups = "drop") |> 
+  arrange(desc(vida_media)) |>
+  slice_head(n = 10)
+
+top_10_longevos |>
+  knitr::kable()
+```
+
+## Los 10 países menos longevos
+
+```{r}
+bottom_10_longevos <- gapminder |>
+  group_by(country) |>
+  summarise(
+    vida_media = mean(lifeExp, na.rm = TRUE),
+    .groups = "drop") |> 
+  arrange(vida_media) |>
+  slice_head(n = 10)
+
+bottom_10_longevos |>
+  knitr::kable()
+```
+
+
+## Esperanza de vida media por continente
+
+```{r}
+vida_continente <- gapminder |>
+  group_by(continent) |>
+  summarise(
+    vida_media = mean(lifeExp, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+vida_continente |>
+  knitr::kable()
+```
+
+## Relación entre PIB per cápita y esperanza de vida
+
+`r report::report(cor.test(gapminder$lifeExp, gapminder$gdpPercap))` 
+
+
+```{r}
+gapminder |>
+  ggplot(aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "loess") +
+  scale_x_log10() +
+  labs(
+    title = "Relación entre PIB per cápita y esperanza de vida",
+    x = "PIB per cápita (escala logarítmica)",
+    y = "Esperanza de vida"
+  ) +
+  theme_classic()
+```
+
+## Resumen general
+
+```{r}
+vida_global <- round(mean(gapminder$lifeExp, na.rm = TRUE), 1)
+```
+
+La esperanza de vida media global en esta base de datos es de **`r vida_global` años**.

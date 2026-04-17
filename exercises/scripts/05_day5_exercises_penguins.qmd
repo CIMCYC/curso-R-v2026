@@ -1,0 +1,49 @@
+---
+title: "Informe sobre los Pingüinos"
+author: "Tu nombre"
+format:
+  html:
+    toc: true
+    embed-resources: true
+---
+
+# Informe sobre los Pingüinos (Solución ejercicio)
+
+## Cargar paquetes y explorar los datos
+
+```{r}
+#| message: false
+# Cargar los paquetes
+library(tidyverse)
+library(palmerpenguins)
+
+# Cargar los datos
+data(penguins)
+
+# Ver la estructura de los datos
+glimpse(penguins)
+```
+
+## Tabla: masa corporal media por isla y especie
+
+```{r}
+penguins |>
+  group_by(island, species) |>
+  summarise(
+    masa_media = mean(body_mass_g, na.rm = TRUE),
+    .groups = "drop") |>
+  knitr::kable()
+```
+
+## Figura: longitud y profundidad del pico
+
+```{r}
+penguins |>
+  ggplot(aes(x = bill_length_mm, y = bill_depth_mm, color = species)) +
+  geom_point() +
+  labs(
+    title = "Longitud y profundidad del pico",
+    x = "Longitud del pico (mm)",
+    y = "Profundidad del pico (mm)",
+    color = "Especie")
+```

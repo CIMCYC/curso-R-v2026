@@ -37,11 +37,11 @@ execute:
 
 Este documento resume **todas las funciones** que hemos usado o vamos a usar en el curso, organizadas por propósito. Guardadlo como referencia rápida.
 
-- Cada sección corresponde a una fase del análisis: importar → inspeccionar → transformar → analizar → visualizar → reportar.
-- Los ejemplos están en pseudocódigo o con el dataset `data_processed` del ensayo clínico.
-- Los bloques marcados como **Día X** indican cuándo aparecieron en el curso.
+-   Cada sección corresponde a una fase del análisis: importar → inspeccionar → transformar → analizar → visualizar → reportar.
+-   Los ejemplos están en pseudocódigo o con el dataset `data_processed` del ensayo clínico.
+-   Los bloques marcados como **Día X** indican cuándo aparecieron en el curso.
 
----
+------------------------------------------------------------------------
 
 # 1. Importar datos {.unnumbered}
 
@@ -69,11 +69,11 @@ library(haven)
 datos <- read_sav(file = "data/raw_data/mi_archivo.sav")
 ```
 
-::: {.callout-tip}
+::: callout-tip
 ## `data/raw_data/` vs `data/processed_data/`
 
-- **`data/raw_data/`** — datos originales, **solo lectura**. Nunca se modifican.
-- **`data/processed_data/`** — datos limpios, tras aplicar el pipeline de preprocesamiento. Aquí vive `preprocessed_data.csv`, nuestro **punto de partida en el Día 4**.
+-   **`data/raw_data/`** — datos originales, **solo lectura**. Nunca se modifican.
+-   **`data/processed_data/`** — datos limpios, tras aplicar el pipeline de preprocesamiento. Aquí vive `preprocessed_data.csv`, nuestro **punto de partida en el Día 4**.
 :::
 
 ::: {.callout-note collapse="true"}
@@ -83,7 +83,7 @@ Las rutas relativas (`"data/processed_data/..."`) **solo funcionan** cuando tu *
 
 **Solución:** usa `here::here()`, que busca el `.Rproj` automáticamente y construye la ruta desde ahí:
 
-```r
+``` r
 library(here)   # instalar primero con install.packages("here")
 
 # funciona sin importar desde donde ejecutes el chunk
@@ -93,7 +93,7 @@ data_processed <- read_csv(file = here("data", "processed_data", "preprocessed_d
 Con `here()`, el mismo código funciona al pulsar ▶, al renderizar, y al ejecutar desde la consola.
 :::
 
----
+------------------------------------------------------------------------
 
 # 2. Inspeccionar datos {.unnumbered}
 
@@ -110,7 +110,7 @@ dim(data_processed)               # filas y columnas
 nrow(data_processed); ncol(data_processed)
 ```
 
----
+------------------------------------------------------------------------
 
 # 3. Vectores, secuencias y `NA` {.unnumbered}
 
@@ -147,7 +147,7 @@ edades[-1]                              # todos menos el primero
 edades[edades > 25]                     # logica
 ```
 
----
+------------------------------------------------------------------------
 
 # 4. Filtrar y seleccionar {.unnumbered}
 
@@ -174,7 +174,7 @@ data_processed |>
   select(where(is.numeric))                           # por tipo
 ```
 
----
+------------------------------------------------------------------------
 
 # 5. Crear columnas y recodificar {.unnumbered}
 
@@ -206,7 +206,7 @@ data_processed |>
                 .fns  = ~ round(.x, digits = 1)))
 ```
 
----
+------------------------------------------------------------------------
 
 # 6. Combinar tablas {.unnumbered}
 
@@ -222,7 +222,7 @@ data_processed |>
 # anti_join: filas de X que NO tienen coincidencia en Y (util para debug)
 ```
 
----
+------------------------------------------------------------------------
 
 # 7. Agrupar y resumir {.unnumbered}
 
@@ -253,7 +253,7 @@ data_processed |>
   count(group, sex)
 ```
 
----
+------------------------------------------------------------------------
 
 # 8. Reestructurar datos (pivotar) {.unnumbered}
 
@@ -273,15 +273,16 @@ data_largo |>
               values_from = "anxiety")
 ```
 
-::: {.callout-important}
+::: callout-important
 ## ¿Cuándo necesito el formato largo?
-- **ANOVA de medidas repetidas** o **mixto**: SÍ (formato largo obligatorio)
-- **ggplot con múltiples variables**: SÍ (una variable = una columna)
-- **Correlaciones, regresión, t-tests independientes, ANOVA una vía**: NO (formato ancho está bien)
-- **t-test pareado**: cualquiera de los dos formatos
+
+-   **ANOVA de medidas repetidas** o **mixto**: SÍ (formato largo obligatorio)
+-   **ggplot con múltiples variables**: SÍ (una variable = una columna)
+-   **Correlaciones, regresión, t-tests independientes, ANOVA una vía**: NO (formato ancho está bien)
+-   **t-test pareado**: cualquiera de los dos formatos
 :::
 
----
+------------------------------------------------------------------------
 
 # 9. Estadística descriptiva {.unnumbered}
 
@@ -319,7 +320,7 @@ data_processed |>
             .groups = "drop")
 ```
 
----
+------------------------------------------------------------------------
 
 # 10. Visualizar con base R {.unnumbered}
 
@@ -349,7 +350,7 @@ hist(data_processed$anxiety_post)
 par(mfrow = c(1, 1))     # volver al layout normal
 ```
 
----
+------------------------------------------------------------------------
 
 # 11. Tests estadísticos {.unnumbered}
 
@@ -467,12 +468,13 @@ cohens_d(x      = trial_cbt$anxiety_pre,
          paired = TRUE)
 ```
 
-::: {.callout-tip}
+::: callout-tip
 ## La regla de oro para elegir t-test
-1. **¿Un único grupo vs. un valor de referencia?** → una muestra
-2. **¿Dos grupos independientes (no relacionados)?** → independientes
-3. **¿El mismo sujeto medido dos veces?** → pareado
-4. **¿Más de dos grupos o más de dos momentos?** → NO es t-test → ANOVA
+
+1.  **¿Un único grupo vs. un valor de referencia?** → una muestra
+2.  **¿Dos grupos independientes (no relacionados)?** → independientes
+3.  **¿El mismo sujeto medido dos veces?** → pareado
+4.  **¿Más de dos grupos o más de dos momentos?** → NO es t-test → ANOVA
 
 En nuestro ensayo, la pregunta completa (3 grupos × 3 momentos) **solo** la responde el ANOVA mixto. Los t-tests de arriba responden **sub-preguntas** específicas.
 :::
@@ -544,13 +546,14 @@ pairs(x = emm, adjust = "holm")
 eta_squared(modelo_mixto, partial = TRUE)
 ```
 
-::: {.callout-important}
+::: callout-important
 ## ¿Por qué el ANOVA mixto SÍ necesita pivotar y el one-way NO?
-- **One-way ANOVA**: 1 variable dependiente por paciente → formato ancho funciona
-- **ANOVA mixto**: varias mediciones del mismo paciente (pre/post/followup) → cada medición necesita su propia fila → formato largo
+
+-   **One-way ANOVA**: 1 variable dependiente por paciente → formato ancho funciona
+-   **ANOVA mixto**: varias mediciones del mismo paciente (pre/post/followup) → cada medición necesita su propia fila → formato largo
 :::
 
----
+------------------------------------------------------------------------
 
 # 12. Exportar y reportar {.unnumbered}
 
@@ -578,23 +581,426 @@ library(sjPlot)
 tab_model(modelo)
 ```
 
+------------------------------------------------------------------------
+
+# 13. Visualizar con `ggplot2` {.unnumbered}
+
+*Día 5 · Bloques 1 y 2*
+
+`ggplot2` sigue la **gramática de gráficos**: cada gráfico se construye por capas que se suman con `+`.
+
+## La estructura básica
+
+```{r}
+library(ggplot2)
+
+ggplot(data = data_processed,
+       mapping = aes(x = group, y = anxiety_post)) +   # datos + estética
+  geom_boxplot() +                                      # capa geométrica
+  labs(title = "Ansiedad post-tratamiento por grupo",   # etiquetas
+       x = "Grupo", y = "GAD-7") +
+  theme_minimal()                                        # apariencia
+```
+
+**Tres ingredientes siempre presentes:**
+
+-   **`data`** — el data frame con los datos.
+-   **`aes()`** (aesthetic mapping) — qué variables van a qué ejes/colores/formas.
+-   **`geom_*()`** — qué tipo de gráfico (puntos, líneas, barras, ...).
+
+## `aes()` — mapear variables a elementos visuales
+
+```{r}
+# dentro de aes(): variables se mapean a estetica
+ggplot(data_processed, aes(x = n_sessions, y = anxiety_post,
+                           color = group,     # color segun grupo
+                           shape = sex)) +    # forma segun sexo
+  geom_point()
+
+# FUERA de aes(): valor fijo, no depende de los datos
+ggplot(data_processed, aes(x = n_sessions, y = anxiety_post)) +
+  geom_point(color = "blue", size = 3, alpha = 0.5)
+```
+
+::: callout-tip
+## Regla clave
+
+Si el valor **depende de una variable** → dentro de `aes(...)`. Si el valor **es fijo para todos los puntos** → fuera de `aes()`.
+:::
+
+## Los `geom_*()` más usados
+
+```{r}
+# scatterplot
+ggplot(data, aes(x, y)) + geom_point()
+
+# linea
+ggplot(data, aes(x, y)) + geom_line()
+
+# histograma
+ggplot(data, aes(x)) + geom_histogram(bins = 30)
+
+# densidad
+ggplot(data, aes(x)) + geom_density()
+
+# barras (una variable categorica)
+ggplot(data, aes(x = group)) + geom_bar()          # cuenta automatica
+ggplot(data, aes(x = group, y = media)) +
+  geom_col()                                        # altura predefinida
+
+# boxplot
+ggplot(data, aes(x = group, y = anxiety_post)) + geom_boxplot()
+
+# violin
+ggplot(data, aes(x = group, y = anxiety_post)) + geom_violin()
+
+# barras de error
+ggplot(data, aes(x, y)) +
+  geom_errorbar(aes(ymin = y - se, ymax = y + se), width = 0.1)
+
+# linea de regresion (ajuste)
+ggplot(data, aes(x, y)) +
+  geom_point() +
+  geom_smooth(method = "lm")    # o "loess" para curvas flexibles
+```
+
+## Facetas — un grafico por grupo
+
+```{r}
+# una facet por nivel de un factor
+ggplot(data_processed, aes(x = n_sessions, y = anxiety_post)) +
+  geom_point() +
+  facet_wrap(~ group)              # arregla automaticamente
+
+# cuadricula: dos factores
+ggplot(data_processed, aes(x = n_sessions, y = anxiety_post)) +
+  geom_point() +
+  facet_grid(sex ~ group)          # filas ~ columnas
+```
+
+## Etiquetas con `labs()`
+
+```{r}
+ggplot(data_processed, aes(x = group, y = anxiety_post, fill = sex)) +
+  geom_boxplot() +
+  labs(
+    title    = "Ansiedad post-tratamiento por grupo y sexo",
+    subtitle = "Ensayo clinico, n = 300",
+    x        = "Grupo de tratamiento",
+    y        = "GAD-7 (ansiedad)",
+    fill     = "Sexo",                # leyenda del color/fill
+    caption  = "Fuente: ensayo sintetico del curso"
+  )
+```
+
+## Temas — apariencia global
+
+```{r}
+# temas incorporados
+p + theme_minimal()      # fondo blanco, solo lineas grises
+p + theme_classic()      # estilo publicacion, sin grid
+p + theme_bw()           # blanco y negro
+p + theme_void()         # nada — util para mapas
+
+# tema APA (requiere jtools)
+library(jtools)
+p + theme_apa()
+```
+
+## Colores
+
+```{r}
+# paletas discretas (para factores)
+p + scale_color_brewer(palette = "Set2")      # ColorBrewer
+p + scale_color_viridis_d()                    # Viridis (accesible)
+
+# paletas continuas (para numeros)
+p + scale_color_viridis_c()
+p + scale_color_gradient(low = "blue", high = "red")
+
+# colores manuales
+p + scale_color_manual(values = c("CBT" = "#2E86AB",
+                                  "pharmacological" = "#F18F01",
+                                  "control" = "gray60"))
+```
+
+## Exportar gráficos
+
+```{r}
+# 1. asignar el grafico a un objeto
+mi_grafico <- ggplot(...) + ...
+
+# 2. guardar con ggsave (formato segun extension)
+ggsave("output/figura1.png", mi_grafico,
+       width = 9, height = 5, dpi = 300)    # PNG alta calidad
+
+ggsave("output/figura1.pdf", mi_grafico,
+       width = 9, height = 5)                # PDF vectorial
+
+ggsave("output/figura1.tiff", mi_grafico,
+       width = 9, height = 5, dpi = 300,
+       compression = "lzw")                  # TIFF para journals
+```
+
+::: callout-tip
+## Formatos: cuándo cada uno
+
+-   **PNG** — default. Web, slides, Word. Con `dpi = 300` para imprimir.
+-   **TIFF** — lo piden muchos journals (Nature, Lancet, Elsevier).
+-   **PDF / SVG** — vectorial, se escala sin pixelarse. Ideal para LaTeX o retoque posterior.
+-   **JPEG** — **evitar** para ciencia: la compresión introduce artefactos en líneas finas.
+:::
+
+------------------------------------------------------------------------
+
+# 14. Quarto — reportes reproducibles {.unnumbered}
+
+*Día 5 · Bloque 3*
+
+**Quarto** es un sistema para crear documentos que combinan **texto**, **código R** y **resultados** en un solo archivo. Al renderizar, el código se ejecuta y los resultados (tablas, gráficos) aparecen automáticamente en el documento.
+
+## Un `.qmd` tiene tres partes
+
+````         
+---                             ← YAML (metadatos)
+title: "Mi informe"
+author: "Tu nombre"
+format: html
 ---
 
-# 13. Quarto — lo que viene en Día 5 {.unnumbered}
+# Introducción                  ← Texto en Markdown
 
-*Preview · Día 5*
+Este es un párrafo con **negrita** y *cursiva*.
 
-- **YAML**: encabezado con metadatos (`title`, `format`, `embed-resources`)
-- **Chunks de código**: `` ```{r} ... ``` ``
-- **Opciones del chunk**: `#| echo: false`, `#| eval: false`, `#| fig-width: 8`
-- **Renderizar**: botón "Render" en RStudio o `quarto render archivo.qmd`
-- **Formatos**: `html`, `pdf`, `docx`, `revealjs` (slides)
+```{r}                         ← Chunk de código R
+library(tidyverse)
+data <- read_csv("datos.csv")
+mean(data$anxiety_post)
+```
+````
 
+## YAML (el encabezado)
+
+``` yaml
 ---
+title: "Análisis del ensayo clínico"
+subtitle: "Con ANOVA mixto"
+author: "Tu nombre"
+date: today                    # fecha automatica
+date-format: "D MMMM YYYY"
+format:
+  html:
+    theme: cosmo               # cosmo, flatly, sandstone, darkly, ...
+    toc: true                  # tabla de contenidos
+    toc-location: left
+    code-fold: true            # codigo plegable
+    embed-resources: true      # HTML autocontenido (un solo archivo)
+execute:
+  echo: true                   # mostrar codigo
+  warning: false               # ocultar warnings
+  message: false               # ocultar messages
+---
+```
+
+## Chunks de código R
+
+Se escriben entre tres backticks y `{r}`:
+
+```{{r}}
+# código R normal
+mean(x)
+```
+
+## Opciones del chunk (`#|`)
+
+Van dentro del chunk, con el prefijo `#|`:
+
+```{r}
+#| label: mi-chunk              # nombre del chunk (util para debugging)
+#| echo: false                  # ocultar el codigo, mostrar solo resultado
+#| eval: false                  # NO ejecutar el codigo (solo mostrarlo)
+#| include: false               # ocultar codigo Y resultado (ejecutar calladamente)
+#| warning: false               # ocultar warnings de este chunk
+#| message: false               # ocultar messages
+#| fig-width: 9                 # ancho del grafico en pulgadas
+#| fig-height: 5                # alto del grafico
+#| fig-cap: "Figura 1. Boxplot" # caption que aparece debajo
+#| fig-align: "center"          # centrar el grafico
+```
+
+::: callout-tip
+## Las opciones más usadas
+
+-   **`echo: false`** — cuando compartes un informe con tu director: no quieres mostrar el código R.
+-   **`eval: false`** — cuando el código es para ilustrar pero no debería ejecutarse (ejemplos pedagógicos).
+-   **`fig-width / fig-height`** — control fino del tamaño en el HTML final.
+:::
+
+## Markdown básico
+
+``` markdown
+# Título nivel 1
+## Título nivel 2
+### Título nivel 3
+
+Texto **en negrita**, en *cursiva*, `código inline`.
+
+- Lista
+- con
+- viñetas
+
+1. Lista
+2. numerada
+
+[Texto del enlace](https://ejemplo.com)
+
+![Caption de la imagen](ruta/imagen.png)
+
+> Cita en bloque
+
+| Columna 1 | Columna 2 |
+|-----------|-----------|
+| A         | B         |
+
+Ecuación inline: $y = mx + b$
+
+Ecuación en bloque:
+
+$$\bar{X} = \frac{1}{n} \sum_{i=1}^{n} x_i$$
+```
+
+## Callouts (cajas destacadas)
+
+``` markdown
+::: {.callout-note}
+## Título opcional
+Contenido de la nota.
+:::
+
+::: {.callout-tip}
+Consejo útil.
+:::
+
+::: {.callout-warning}
+Cuidado con esto.
+:::
+
+::: {.callout-important}
+Información crítica.
+:::
+```
+
+Tipos: `note` (azul), `tip` (verde), `warning` (amarillo), `caution` (naranja), `important` (rojo).
+
+## Columnas
+
+``` markdown
+:::: {.columns}
+
+::: {.column width="50%"}
+Contenido izquierda
+:::
+
+::: {.column width="50%"}
+Contenido derecha
+:::
+
+::::
+```
+
+## Renderizar
+
+Tres formas:
+
+-   **En RStudio**: botón **Render** (icono de flecha azul arriba del editor) o **Ctrl/Cmd + Shift + K**.
+-   **Desde la consola de R**: `quarto::quarto_render("archivo.qmd")`
+-   **Desde la terminal**: `quarto render archivo.qmd`
+
+## Formatos de salida
+
+``` yaml
+# HTML (el más versátil)
+format:
+  html:
+    theme: cosmo
+    toc: true
+    embed-resources: true
+
+# PDF (requiere LaTeX instalado)
+format:
+  pdf:
+    documentclass: article
+    geometry: margin=2cm
+
+# Word (editar despues en Microsoft Word)
+format: docx
+
+# Slides RevealJS (como las presentaciones del curso)
+format:
+  revealjs:
+    theme: simple
+    slide-number: true
+
+# Varios formatos a la vez
+format:
+  html: default
+  pdf: default
+  docx: default
+```
+
+## Referencias dentro del documento
+
+``` markdown
+Ver la @fig-boxplot y la @tbl-descriptivos.
+```
+
+Y en los chunks:
+
+```{r}
+#| label: fig-boxplot
+#| fig-cap: "Figura 1. Boxplot de ansiedad"
+# ggplot(...)
+
+#| label: tbl-descriptivos
+#| tbl-cap: "Tabla 1. Descriptivos"
+# kable(...)
+```
+
+Los prefijos `fig-` y `tbl-` son obligatorios para que Quarto genere las referencias automáticamente.
+
+## Código inline
+
+Para inyectar un resultado R dentro del texto, se usa el patrón `` `<backtick>r expresion<backtick>` ``. Por ejemplo, escribiendo en el documento algo como:
+
+> La media de ansiedad post-tratamiento fue de **\[backtick\]r round(mean(data\$anxiety_post), 2)\[backtick\]**.
+
+Al renderizar, se convierte en: "La media de ansiedad post-tratamiento fue de 7.19."
+
+(Sustituye `[backtick]` por el carácter \` cuando lo escribas de verdad.)
+
+::: callout-tip
+## ¿Por qué Quarto es tan útil?
+
+1.  **Reproducibilidad total**: cualquiera que tenga el `.qmd` y los datos obtiene exactamente los mismos resultados.
+2.  **Si los datos cambian, el informe se actualiza solo**: re-renderizas y todas las tablas, gráficos y números se recalculan.
+3.  **No copias-pegas resultados a Word**: el código inyecta los números directamente en el texto.
+4.  **Versionable con git**: es texto plano, puedes ver cambios línea a línea.
+:::
+
+::: callout-note
+## Recursos
+
+-   Documentación oficial: [quarto.org](https://quarto.org/)
+-   Galería de ejemplos: [quarto.org/docs/gallery](https://quarto.org/docs/gallery/)
+-   Cheatsheet de Markdown: [commonmark.org/help](https://commonmark.org/help/)
+-   R Markdown Cookbook (muchas recetas aplicables a Quarto): [bookdown.org/yihui/rmarkdown-cookbook](https://bookdown.org/yihui/rmarkdown-cookbook/)
+:::
+
+------------------------------------------------------------------------
 
 # Resumen visual — flujo típico de análisis {.unnumbered}
 
-```
+```         
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
 │   1. Cargar  │────▶│  2. Limpiar  │────▶│  3. Explorar │
 │   read_csv   │     │  filter      │     │  glimpse     │
