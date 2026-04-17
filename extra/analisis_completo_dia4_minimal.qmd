@@ -1,0 +1,237 @@
+---
+title: "Mixed ANOVA: anxiety across treatment groups and timepoints"
+subtitle: "Clinical trial: CBT vs pharmacological vs control"
+author: "Tu nombre"
+date: today
+date-format: "D MMMM YYYY"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    embed-resources: true
+    code-fold: true              # codigo oculto por defecto, expandible al click
+    code-tools: false
+    grid:
+      body-width: 900px
+      sidebar-width: 250px
+      margin-width: 200px
+execute:
+  echo: true
+  eval: true
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(afex)
+library(emmeans)
+library(effectsize)
+library(knitr)
+library(jtools)
+
+options(scipen = 999)
+
+data_processed <- read_csv("../exercises/data/processed_data/preprocessed_data.csv")
+
+data_long <- data_processed |>
+  pivot_longer(
+    cols          = c(starts_with("anxiety"), starts_with("depression"),
+                      starts_with("wellbeing"), starts_with("loneliness"),
+                      starts_with("self_esteem")),
+    names_pattern = "(.*)_(pre|post|followup)",
+    names_to      = c(".value", "timepoint")
+  ) |>
+  mutate(timepoint = factor(timepoint, levels = c("pre", "post", "followup")))
+```
+
+# Methods
+
+A randomized clinical trial assigned 300 patients to one of three conditions: cognitive-behavioral therapy (CBT, *n* = 100), pharmacological treatment (*n* = 100), or waitlist control (*n* = 100). Anxiety was measured with the GAD-7 at three timepoints: pre-treatment, post-treatment, and 3-month follow-up.
+
+A 3 (group: CBT vs. pharmacological vs. control) × 3 (timepoint: pre vs. post vs. follow-up) mixed ANOVA was conducted on GAD-7 scores using the `afex` R package, with Greenhouse–Geisser correction for sphericity. Post-hoc pairwise comparisons used Holm correction. Effect sizes are reported as generalized eta squared ($\eta^2_G$; Olejnik & Algina, 2003).
+
+# Results
+
+## Descriptive statistics
+
+```{r}
+#| label: descriptives
+
+descriptivos <- data_long |>
+  summarise(
+    M  = round(mean(anxiety), 2),
+    SD = round(sd(anxiety), 2),
+    n  = n(),
+    .by = c(group, timepoint)
+  ) |>
+  arrange(group, timepoint)
+
+descriptivos |>
+  kable(
+    format    = "html",
+    caption   = "Table 1. Descriptive statistics for GAD-7 anxiety scores by group and timepoint.",
+    col.names = c("Group", "Timepoint", "M", "SD", "n")
+  )
+```
+
+## Mixed ANOVA
+
+```{r}
+#| label: model
+
+modelo_mixto <- aov_ez(
+  id      = "patient_id",
+  dv      = "anxiety",
+  data    = data_long,
+  within  = "timepoint",
+  between = "group"
+)
+
+afex::nice(modelo_mixto) |>
+  kable(
+    format    = "html",
+    caption   = "Table 2. Mixed ANOVA results for GAD-7 anxiety: timepoint x group.",
+    col.names = c("Effect", "df", "MSE", "F", "ges", "p"),
+    escape    = FALSE
+  )
+```
+
+The mixed ANOVA revealed significant main effects of timepoint and group, as well as a significant timepoint × group interaction (see Table 2). The interaction effect was of primary interest: it indicates that the change in anxiety over time **differed across treatment conditions**.
+
+## Effect sizes with confidence intervals
+
+```{r}
+#| label: effect-size
+
+eta_squared(model = modelo_mixto, generalized = TRUE) |>
+  kable(
+    format  = "html",
+    caption = "Table 3. Generalized eta squared with 95% confidence intervals.",
+    digits  = 3
+  )
+```
+
+## Visualization
+
+```{r}
+#| label: fig-trayectorias
+#| fig-cap: "Figure 1. Mean GAD-7 anxiety across timepoints by treatment group. Error bars represent ±1 standard error of the mean."
+#| fig-width: 9
+#| fig-height: 5
+
+fig_trayectorias_anxiety <- ggplot(
+  data    = descriptivos,
+  mapping = aes(x = timepoint, y = M, color = group, group = group)
+) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  geom_errorbar(
+    aes(ymin = M - SD/sqrt(n), ymax = M + SD/sqrt(n)),
+    width = 0.1
+  ) +
+  labs(
+    x     = "Timepoint",
+    y     = "GAD-7 anxiety (mean)",
+    color = "Group"
+  ) +
+  theme_apa()
+
+fig_trayectorias_anxiety
+
+ggsave(
+  filename = "../exercises/output/fig_trayectorias_anxiety.png",
+  plot     = fig_trayectorias_anxiety,
+  width    = 9, height = 5, dpi = 300
+)
+```
+
+```{r}
+#| label: fig-interaction
+#| fig-cap: "Figure 2. Estimated marginal means from the mixed ANOVA model (95% CI)."
+#| fig-width: 9
+#| fig-height: 5
+
+fig_interaccion_anxiety <- emmip(
+  object  = modelo_mixto,
+  formula = group ~ timepoint,
+  CIs     = TRUE
+) +
+  labs(
+    x = "Timepoint",
+    y = "GAD-7 anxiety (estimated mean)"
+  ) +
+  theme_apa()
+
+fig_interaccion_anxiety
+
+ggsave(
+  filename = "../exercises/output/fig_interaccion_anxiety.png",
+  plot     = fig_interaccion_anxiety,
+  width    = 9, height = 5, dpi = 300
+)
+```
+
+## Post-hoc comparisons
+
+### Time effects within each group
+
+```{r}
+#| label: posthoc-within
+
+emm_within <- emmeans(object = modelo_mixto, specs = ~ timepoint | group)
+
+pairs(x = emm_within, adjust = "holm") |>
+  as.data.frame() |>
+  kable(
+    format  = "html",
+    caption = "Table 4. Pairwise comparisons of timepoints within each group (Holm-corrected).",
+    digits  = 3
+  )
+```
+
+### Group differences at each timepoint
+
+```{r}
+#| label: posthoc-between
+
+emm_between <- emmeans(object = modelo_mixto, specs = ~ group | timepoint)
+
+pairs(x = emm_between, adjust = "holm") |>
+  as.data.frame() |>
+  kable(
+    format  = "html",
+    caption = "Table 5. Pairwise comparisons of groups at each timepoint (Holm-corrected).",
+    digits  = 3
+  )
+```
+
+# Interpretation
+
+The significant `timepoint × group` interaction confirms that the three treatment conditions produced **different patterns of change in anxiety over time**. Post-hoc comparisons (Tables 4 and 5) clarify the pattern:
+
+- **CBT** showed a substantial reduction in anxiety from pre to post and **maintained** the reduction at follow-up.
+- **Pharmacological treatment** produced a comparable reduction at post-treatment but showed a **partial rebound** at follow-up, consistent with treatment discontinuation effects.
+- **Control** participants showed minimal change across timepoints.
+
+These findings are consistent with the literature suggesting that the benefits of CBT for anxiety disorders tend to be **maintained beyond the end of active treatment**, whereas pharmacological effects may attenuate after discontinuation.
+
+# References
+
+Cohen, J. (1988). *Statistical power analysis for the behavioral sciences* (2nd ed.). Lawrence Erlbaum Associates.
+
+Olejnik, S., & Algina, J. (2003). Generalized eta and omega squared statistics: Measures of effect size for some common research designs. *Psychological Methods*, *8*(4), 434–447.
+
+Singmann, H., Bolker, B., Westfall, J., Aust, F., & Ben-Shachar, M. S. (2024). *afex: Analysis of factorial experiments* [R package]. https://CRAN.R-project.org/package=afex
+
+# Session information
+
+```{r}
+#| label: session-info
+#| code-fold: true
+sessionInfo()
+```

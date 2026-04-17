@@ -1,0 +1,535 @@
+---
+title: "Análisis completo del ensayo clínico"
+subtitle: "Import → Tidy → Visualize → Model → Report — el flujo de datos de R4DS aplicado al Día 4"
+author:
+  - name: "Efraín García Sánchez & Filip Andras"
+    affiliations:
+      - name: "CIMCYC — Universidad de Granada"
+date: today
+date-format: "D MMMM YYYY"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-fold: false
+    code-tools: true
+    embed-resources: true
+    grid:
+      body-width: 1000px
+      sidebar-width: 250px
+      margin-width: 200px
+    include-in-header:
+      - text: |
+          <style>
+            pre { white-space: pre-wrap; word-wrap: break-word; }
+            main.content { max-width: 1000px; }
+          </style>
+execute:
+  echo: true
+  eval: true
+  warning: false
+  message: false
+---
+
+# El flujo de datos de R4DS
+
+El libro [*R for Data Science*](https://r4ds.hadley.nz/) (Wickham & Grolemund) describe un ciclo que **se repite en cualquier análisis de datos**:
+
+![Flujo de trabajo del análisis de datos según *R for Data Science* (Wickham & Grolemund, 2017)](../img/r4ds_workflow.png){fig-align="center" width="80%"}
+
+::: {.callout-tip}
+## El ciclo no es lineal
+
+En la práctica, vuelves de **Visualize** a **Tidy** (un gráfico revela un dato raro → toca limpiar más), de **Model** a **Visualize** (necesitas un gráfico de residuos para diagnosticar el modelo), de **Report** a **Tidy** (te das cuenta de que necesitas el dataset en otro formato para una tabla).
+
+Ese es el día a día del análisis de datos. Cada flecha hacia atrás es **aprender algo nuevo de los datos** — no un error.
+:::
+
+Este documento aplica este flujo al ensayo clínico del curso:
+
+| Paso | Qué se hace | Funciones clave |
+|---|---|---|
+| **Import** | Cargar el dataset preprocesado | `read_csv()` |
+| **Tidy** | Pivotar a formato largo (paciente × timepoint) | `pivot_longer()` con `.value` |
+| **Transform** | Recodificar `timepoint` como factor ordenado | `mutate()`, `factor()` |
+| **Visualize** | Boxplots, gráfico de interacción | `boxplot()`, `ggplot()`, `emmip()` |
+| **Model** | ANOVA mixto (timepoint × group) | `aov_ez()`, `emmeans()`, `eta_squared()` |
+| **Report** | Interpretación clínica de los resultados | texto + APA |
+
+---
+
+# Paso 1 · Import
+
+## Cargar paquetes
+
+```{r}
+#| label: paquetes
+
+library(tidyverse)    # readr, dplyr, tidyr, ggplot2
+library(afex)         # aov_ez() para ANOVA mixto
+library(emmeans)      # comparaciones post-hoc
+library(effectsize)   # eta_squared, cohens_d
+library(easystats)    # report() y check_model()
+library(knitr)        # kable() para tablas limpias en HTML
+library(jtools)       # theme_apa() para graficos estilo APA
+
+options(scipen = 999, width = 120)
+```
+
+## Cargar los datos preprocesados
+
+```{r}
+#| label: import
+
+data_processed <- read_csv("../exercises/data/processed_data/preprocessed_data.csv")
+
+# inspeccion rapida
+glimpse(data_processed)
+```
+
+::: {.callout-tip}
+## ¿Por qué partimos de `data_processed` y no de los datos crudos?
+
+`preprocessed_data.csv` es el resultado del pipeline de Día 3 Bloque 1: ya tiene los datos del ensayo unidos con los del seguimiento, las columnas renombradas (rosenberg → self_esteem, ucla → loneliness), y las variables derivadas (`mejora`, `cambio`, `gravedad_post`).
+
+Partir de aquí significa que cada día empieza con los datos en el estado que necesita el análisis del día — sin repetir los pasos previos.
+:::
+
+---
+
+# Paso 2 · Tidy
+
+## ¿Por qué necesitamos formato largo?
+
+Nuestros datos están en formato **ancho**: cada paciente tiene una fila, y cada combinación de constructo × timepoint es una columna (`anxiety_pre`, `anxiety_post`, `anxiety_followup`, etc.).
+
+Para el ANOVA mixto necesitamos formato **largo**: una fila por *medición* (paciente × timepoint), con cada constructo en su propia columna.
+
+## Pivotar con `.value` (todos los constructos a la vez)
+
+```{r}
+#| label: tidy
+
+data_long <- data_processed |>
+  pivot_longer(
+    # cols: las columnas que vamos a apilar (5 constructos x 3 timepoints = 15)
+    cols          = c(starts_with("anxiety"),
+                      starts_with("depression"),
+                      starts_with("wellbeing"),
+                      starts_with("loneliness"),
+                      starts_with("self_esteem")),
+
+    # names_pattern: cada nombre se parte en (constructo)_(timepoint)
+    names_pattern = "(.*)_(pre|post|followup)",
+
+    # names_to: el primer trozo se vuelve nombre de columna (.value),
+    # el segundo trozo va a una columna llamada "timepoint"
+    names_to      = c(".value", "timepoint")
+  ) |>
+  # ordenar timepoint cronologicamente como factor
+  mutate(timepoint = factor(timepoint, levels = c("pre", "post", "followup")))
+
+# verificar
+glimpse(data_long)
+```
+
+::: {.callout-note}
+## ¿Por qué `.value`?
+
+Sin `.value`, todos los números se apilan en una sola columna `value` y necesitas filtrar por `variable` cada vez que quieres analizar uno. Con `.value`, cada constructo (anxiety, depression, ...) tiene su propia columna y puedes pasar a `aov_ez(dv = "anxiety", ...)` directamente.
+
+Si quieres profundizar, ver el documento [`pivot_longer_multiples.html`](pivot_longer_multiples.html).
+:::
+
+```{r}
+#| label: tidy-verificacion
+
+# 300 pacientes x 3 timepoints = 900 filas
+nrow(data_long)
+
+# cada paciente tiene exactamente 3 timepoints
+data_long |>
+  count(patient_id) |>
+  count(n)
+
+# cada combinacion grupo x timepoint tiene 100 pacientes
+data_long |>
+  count(group, timepoint)
+```
+
+---
+
+# Paso 3 · Transform
+
+En este punto los datos ya están listos. Pero antes de modelar, podemos crear **resúmenes intermedios** que serán útiles tanto para visualizar como para reportar.
+
+## Descriptivos por grupo y timepoint
+
+```{r}
+#| label: descriptivos
+
+descriptivos <- data_long |>
+  summarise(
+    media = round(mean(anxiety), 2),
+    dt    = round(sd(anxiety), 2),
+    n     = n(),
+    se    = round(sd(anxiety) / sqrt(n()), 2),
+    .by   = c(group, timepoint)
+  )
+
+descriptivos |>
+  kable(
+    format    = "html",
+    caption   = "Descriptivos de ansiedad por grupo y timepoint",
+    col.names = c("Grupo", "Momento", "Media", "DT", "n", "SE")
+  )
+```
+
+::: {.callout-tip}
+## El argumento `.by` es nuevo (dplyr 1.1+)
+
+Equivale a `group_by(group, timepoint) |> summarise(...) |> ungroup()` pero en una sola línea, sin grupo persistente. Más limpio para análisis exploratorios.
+:::
+
+---
+
+# Paso 4 · Visualize
+
+## Boxplots por grupo y timepoint
+
+```{r}
+#| label: viz-boxplot
+#| fig-width: 9
+#| fig-height: 5
+
+# crear y asignar a un objeto descriptivo
+fig_boxplot_anxiety <- ggplot(
+  data    = data_long,
+  mapping = aes(x = timepoint, y = anxiety, fill = group)
+) +
+  geom_boxplot() +
+  labs(
+    title    = "Ansiedad (GAD-7) por grupo y momento",
+    subtitle = "Las cajas muestran la mediana, Q1-Q3 y rango",
+    x        = "Momento",
+    y        = "Ansiedad (GAD-7)",
+    fill     = "Grupo"
+  ) +
+  theme_apa()
+
+# mostrar en el documento
+fig_boxplot_anxiety
+
+# guardar a output/
+ggsave(
+  filename = "../exercises/output/fig_boxplot_anxiety.png",
+  plot     = fig_boxplot_anxiety,
+  width    = 9, height = 5, dpi = 300
+)
+```
+
+## Gráfico de medias con error estándar (trayectorias)
+
+```{r}
+#| label: viz-trayectorias
+#| fig-width: 9
+#| fig-height: 5
+
+# crear y asignar a un objeto descriptivo
+fig_trayectorias_anxiety <- ggplot(
+  data    = descriptivos,
+  mapping = aes(x = timepoint, y = media,
+                color = group, group = group)
+) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  geom_errorbar(aes(ymin = media - se, ymax = media + se),
+                width = 0.1) +
+  labs(
+    title    = "Evolucion de la ansiedad por grupo",
+    subtitle = "Media +/- error estandar",
+    x        = "Momento",
+    y        = "Ansiedad (GAD-7) media",
+    color    = "Grupo"
+  ) +
+  theme_apa()
+
+# mostrar en el documento
+fig_trayectorias_anxiety
+
+# guardar a output/
+ggsave(
+  filename = "../exercises/output/fig_trayectorias_anxiety.png",
+  plot     = fig_trayectorias_anxiety,
+  width    = 9, height = 5, dpi = 300
+)
+```
+
+::: {.callout-important}
+## Lectura visual
+
+Si las **líneas son paralelas** → el cambio en el tiempo es igual en los tres grupos → no hay interacción.
+Si las **líneas no son paralelas** → el cambio en el tiempo *depende* del grupo → hay interacción.
+
+Aquí las líneas claramente NO son paralelas: CBT baja mucho y se mantiene, farmacológico baja y rebota, control apenas cambia. Esperamos una interacción significativa.
+:::
+
+---
+
+# Paso 5 · Model
+
+## Ajustar el ANOVA mixto
+
+```{r}
+#| label: model
+
+modelo_mixto <- aov_ez(
+  id      = "patient_id",   # identificador del sujeto
+  dv      = "anxiety",      # variable dependiente
+  data    = data_long,      # formato largo
+  within  = "timepoint",    # factor intra-sujeto (3 niveles)
+  between = "group"         # factor entre-sujetos (3 niveles)
+)
+```
+
+### Output crudo de `afex::aov_ez()`
+
+```{r}
+#| label: model-raw
+modelo_mixto
+```
+
+### Tabla formateada con `nice()` + `kable()`
+
+::: {.callout-tip}
+## ¿Qué hace cada función?
+
+- **`afex::nice()`** — toma el objeto `afex_aov` y devuelve un **data frame limpio** con las columnas formateadas como las verías en un paper: F con asteriscos de significación, p-valores como "<.001", grados de libertad con corrección GG, etc. Es el "traductor" del output crudo a formato APA.
+
+- **`knitr::kable()`** — toma cualquier data frame y lo renderiza como **tabla HTML** (con `format = "html"`) bonita en el documento Quarto. No cambia el contenido, solo cambia la presentación visual.
+
+Encadenadas con `|>`: primero formateamos el ANOVA → luego lo presentamos como tabla. Cada función hace una cosa, en su sitio.
+:::
+
+::: {.callout-warning}
+## Llamamos `afex::nice()` con el prefijo del paquete
+
+`nice` es un nombre genérico que también existe en el paquete `car` (cargado indirectamente por otros paquetes). Si llamas a `nice(modelo_mixto)` sin el prefijo, R puede usar la versión equivocada y devolver:
+
+```
+Error in UseMethod("nice", object) :
+  no applicable method for 'nice' applied to an object of class "c('aov', 'lm')"
+```
+
+**Solución:** usa siempre **`afex::nice(...)`** (con `afex::` delante) — así no hay ambigüedad.
+:::
+
+```{r}
+#| label: model-nice
+
+afex::nice(modelo_mixto) |>
+  kable(
+    format    = "html",
+    caption   = "ANOVA mixto: ansiedad ~ timepoint x group",
+    col.names = c("Efecto", "df", "MSE", "F", "ges (eta^2 generalizado)", "p"),
+    escape    = FALSE
+  )
+```
+
+::: {.callout-tip}
+## ¿Qué es cada columna?
+
+- **df** — grados de libertad. Para `timepoint` aparecen como decimales (`1.69, 501.82`) porque `afex` aplicó la **corrección de Greenhouse-Geisser** automáticamente al detectar violación de esfericidad.
+- **MSE** — *mean squared error* (varianza residual del término de error correspondiente).
+- **F** — estadístico F. Los asteriscos indican significación: `*` p < .05, `**` p < .01, `***` p < .001.
+- **ges (η²G)** — *generalized eta squared* (Olejnik & Algina, 2003). Tamaño del efecto recomendado para diseños mixtos. Más comparable entre estudios que el η² parcial cuando los diseños difieren.
+- **p** — p-valor.
+
+**Interpretación de η²G (Cohen, 1988):** 0.01 = pequeño · 0.06 = mediano · 0.14 = grande.
+:::
+
+## Intervalos de confianza para el tamaño del efecto
+
+La tabla de `nice()` ya da el η² generalizado, pero **sin intervalos de confianza**. Para añadirlos usamos `effectsize::eta_squared()` con la misma métrica:
+
+```{r}
+#| label: effect-size-ci
+
+eta_squared(model = modelo_mixto, generalized = TRUE) |>
+  kable(
+    format  = "html",
+    caption = "Eta cuadrado generalizado con intervalos de confianza al 95%",
+    digits  = 3
+  )
+```
+
+::: {.callout-note}
+## ¿Por qué dos llamadas distintas para lo mismo?
+
+`afex::nice()` te da el ges como número puntual (suficiente para una tabla resumen). `effectsize::eta_squared(generalized = TRUE)` calcula la **misma métrica** pero añade el IC al 95% — útil para reportes APA. Si solo quieres el número, ahórrate el segundo paso.
+:::
+
+## Post-hoc: ¿entre qué grupos y momentos están las diferencias?
+
+### Efectos simples del tiempo dentro de cada grupo
+
+```{r}
+#| label: posthoc-within
+
+emm_within <- emmeans(object = modelo_mixto, specs = ~ timepoint | group)
+
+# convertir a data frame para que kable() lo formatee bien
+pairs(x = emm_within, adjust = "holm") |>
+  as.data.frame() |>
+  kable(
+    format  = "html",
+    caption = "Comparaciones por pares: timepoint dentro de cada grupo (Holm)",
+    digits  = 3
+  )
+```
+
+### Diferencias entre grupos en cada momento
+
+```{r}
+#| label: posthoc-between
+
+emm_between <- emmeans(object = modelo_mixto, specs = ~ group | timepoint)
+
+pairs(x = emm_between, adjust = "holm") |>
+  as.data.frame() |>
+  kable(
+    format  = "html",
+    caption = "Comparaciones por pares: grupos dentro de cada timepoint (Holm)",
+    digits  = 3
+  )
+```
+
+## Gráfico de interacción del modelo (con IC 95%)
+
+```{r}
+#| label: model-plot
+#| fig-width: 9
+#| fig-height: 5
+
+# crear y asignar a un objeto descriptivo
+fig_interaccion_anxiety <- emmip(
+  object  = modelo_mixto,
+  formula = group ~ timepoint,
+  CIs     = TRUE
+) +
+  labs(
+    title = "Medias estimadas del modelo (con IC 95%)",
+    x     = "Momento",
+    y     = "Ansiedad (GAD-7)"
+  ) +
+  theme_apa()
+
+# mostrar en el documento
+fig_interaccion_anxiety
+
+# guardar a output/
+ggsave(
+  filename = "../exercises/output/fig_interaccion_anxiety.png",
+  plot     = fig_interaccion_anxiety,
+  width    = 9, height = 5, dpi = 300
+)
+```
+
+---
+
+# Paso 6 · Report
+
+## Resumen narrativo de los resultados
+
+::: {.callout-tip appearance="simple"}
+**Pregunta de investigación:** ¿la evolución de la ansiedad a lo largo del tratamiento (pre → post → followup) difiere entre los tres grupos (CBT, farmacológico, control)?
+:::
+
+### Efectos principales y la interacción
+
+El ANOVA mixto reveló los tres efectos esperados como significativos:
+
+- **Efecto del tiempo** (factor within): la ansiedad cambió a lo largo del seguimiento, considerando todos los grupos juntos.
+- **Efecto del grupo** (factor between): los tres grupos difirieron en su nivel medio de ansiedad.
+- **Interacción `timepoint × group`**: **el cambio temporal NO fue igual en los tres grupos** — esta es la pregunta clave del ensayo.
+
+La interacción es lo importante. Sin ella, podríamos concluir solo que "los grupos difieren" o "la ansiedad cambió en el tiempo" — pero sin un efecto diferencial del tratamiento, el ensayo no aportaría evidencia clínica.
+
+### Patrón observado en cada grupo
+
+A partir del gráfico de trayectorias y los post-hoc:
+
+- **CBT**: caída pronunciada pre → post, **mantenida** en el seguimiento. Patrón de tratamiento eficaz con efectos duraderos.
+- **Farmacológico**: caída pre → post comparable a CBT, pero **rebote parcial** en el seguimiento (efecto de retirada).
+- **Control**: cambio mínimo a lo largo del tiempo, como cabría esperar.
+
+### Conclusión clínica
+
+CBT y tratamiento farmacológico son ambos eficaces a corto plazo, pero **CBT muestra mejor mantenimiento** del efecto a 3 meses post-tratamiento. Estos resultados son consistentes con la literatura sobre psicoterapia vs. farmacoterapia para trastornos de ansiedad: los efectos de la psicoterapia suelen persistir más allá del fin del tratamiento, mientras que los farmacológicos pueden revertir tras la retirada.
+
+::: {.callout-warning}
+## Dos cosas que NO podemos concluir
+
+1. **Causalidad sobre el mecanismo**: el ANOVA nos dice *qué* grupos difieren, pero no *por qué* (mecanismo psicológico vs. neurobiológico).
+2. **Generalización**: estos son datos sintéticos. En un estudio real habría que comprobar la representatividad de la muestra, los criterios de inclusión, los abandonos, etc.
+:::
+
+---
+
+# Exportar los gráficos
+
+Para incluir los gráficos en un manuscrito, póster o presentación necesitamos guardarlos como archivos. Hay dos casos según el tipo de gráfico.
+
+## Gráficos de `ggplot2` → `ggsave()`
+
+A lo largo del documento ya hemos guardado las figuras junto a su creación. El patrón general:
+
+```{r}
+#| label: ggsave-ejemplo
+#| eval: false
+
+# 1. Asignar el grafico a un objeto con nombre descriptivo
+mi_grafico <- ggplot(...) + ...
+
+# 2. Mostrarlo en el documento
+mi_grafico
+
+# 3. Guardarlo con ggsave
+ggsave(
+  filename = "../exercises/output/mi_grafico.png",
+  plot     = mi_grafico,
+  width    = 9,            # pulgadas (default unit)
+  height   = 5,
+  dpi      = 300           # 300 DPI = calidad publicacion
+)
+```
+
+`ggsave()` por defecto guarda **el último gráfico mostrado** si omites `plot`, pero es mejor pasarle el objeto explícitamente — así sabes exactamente qué se está guardando.
+
+**Las tres figuras del análisis ya están en `exercises/output/`:**
+
+- `fig_boxplot_anxiety.png`
+- `fig_trayectorias_anxiety.png`
+- `fig_interaccion_anxiety.png`
+
+## ¿Qué formato elegir?
+
+| Formato | Cuándo usarlo |
+|---|---|
+| **PNG** (`.png`) | Por defecto. Buena calidad, soporta transparencia. Para web, slides, manuscritos en Word. Especifica `dpi = 300` para imprimir. |
+| **TIFF** (`.tiff`) | El formato estándar exigido por **muchos journals científicos** (Nature, Lancet, Elsevier...). Sin pérdida, alta calidad. Especifica `dpi = 300` o más, y usa `compression = "lzw"` para reducir tamaño. |
+| **PDF** (`.pdf`) | Vectorial: se escala sin pixelarse. Ideal para LaTeX, posters grandes. No soporta transparencia bien. |
+| **SVG** (`.svg`) | Vectorial editable: se puede modificar después en Illustrator/Inkscape. Útil para retocar etiquetas o colores manualmente. |
+| **EPS** (`.eps`) | Vectorial. Lo piden algunos journals tradicionales. |
+| **JPEG** (`.jpg`) | **Evitar** para gráficos científicos: la compresión introduce artefactos en líneas finas y texto. |
+
+---
+
+# Sesión
+
+```{r}
+#| label: session-info
+sessionInfo()
+```

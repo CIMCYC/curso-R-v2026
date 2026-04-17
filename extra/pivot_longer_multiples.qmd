@@ -1,0 +1,401 @@
+---
+title: "`pivot_longer()` con múltiples constructos"
+subtitle: "Cómo apilar varias variables a la vez (anxiety, depression…) por timepoint"
+author:
+  - name: "Efraín García Sánchez & Filip Andras"
+    affiliations:
+      - name: "CIMCYC — Universidad de Granada"
+date: today
+date-format: "D MMMM YYYY"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-depth: 2
+    code-fold: false
+    code-tools: true
+    embed-resources: true
+    grid:
+      body-width: 1000px
+      sidebar-width: 250px
+      margin-width: 200px
+    include-in-header:
+      - text: |
+          <style>
+            pre { white-space: pre-wrap; word-wrap: break-word; }
+            main.content { max-width: 1000px; }
+          </style>
+execute:
+  echo: true
+  eval: true
+  warning: false
+  message: false
+---
+
+# El problema
+
+Nuestro dataset `data_processed` tiene varias variables medidas en **tres momentos** (pre, post, followup). Cada combinación es una columna:
+
+- `anxiety_pre`, `anxiety_post`, `anxiety_followup`
+- `depression_pre`, `depression_post`, `depression_followup`
+- `wellbeing_pre`, `wellbeing_post`, `wellbeing_followup`
+- `loneliness_pre`, `loneliness_post`, `loneliness_followup`
+- `self_esteem_pre`, `self_esteem_post`, `self_esteem_followup`
+
+Para análisis como **ANOVA de medidas repetidas** o **ANOVA mixto**, necesitamos formato largo:
+
+- una fila por **paciente × timepoint**
+- una columna por **constructo**
+
+Esto se hace con `pivot_longer()`, pero con el truco de `.value` para tener varias columnas de salida (una por constructo) en lugar de apilarlo todo en una sola columna `value`.
+
+::: {.callout-note}
+## Regex aparece varias veces en este documento
+
+Si nunca has visto **regex** (expresiones regulares) y los símbolos como `(.*)_(pre|post)` te resultan extraños, hay un mini-tutorial al final del documento — ver [Apéndice: ¿Qué es un regex?](#sec-regex).
+:::
+
+---
+
+# Mini-ejemplo
+
+Empezamos con un dataset minúsculo (2 pacientes, 2 constructos, 2 momentos) para ver la mecánica con claridad:
+
+```{r}
+#| label: setup-mini
+
+library(tidyverse)
+
+df <- tibble(
+  patient_id      = c(1, 2),
+  anxiety_pre     = c(14, 11),
+  anxiety_post    = c( 8,  7),
+  depression_pre  = c(18, 15),
+  depression_post = c(10,  9)
+)
+df
+```
+
+## El pivot
+
+```{r}
+#| label: pivot-mini
+
+df_largo <- df |>
+  pivot_longer(
+    cols          = -patient_id,
+    names_pattern = "(.*)_(pre|post)",
+    names_to      = c(".value", "timepoint")
+  )
+
+df_largo
+```
+
+::: {.callout-tip}
+## Lo que está pasando
+
+- 4 columnas (anxiety_pre, anxiety_post, depression_pre, depression_post) se convierten en **4 filas por paciente** (2 timepoints × 2 constructos), pero como cada constructo es una columna en el resultado, acaban siendo solo **2 filas por paciente** (una por timepoint).
+- `anxiety` y `depression` quedan como **columnas separadas**, con sus valores numéricos.
+:::
+
+## Cómo funciona `names_pattern` — la regex que parte los nombres
+
+`pivot_longer` mira **cada nombre de columna** que va a apilar y le aplica el regex. **Cada `( )` en el regex es un GRUPO DE CAPTURA**.
+
+```
+names_pattern = "(.*)_(pre|post)"
+
+Aplicado a "anxiety_pre":
+
+  "anxiety_pre"
+   ↑       ↑
+   │       └── grupo 2 captura: "pre"
+   │
+   └── grupo 1 captura: "anxiety"
+
+(el "_" no está entre paréntesis → no se captura, solo localiza dónde dividir)
+```
+
+| Nombre original | Grupo 1 | Grupo 2 |
+|---|---|---|
+| `anxiety_pre` | `"anxiety"` | `"pre"` |
+| `anxiety_post` | `"anxiety"` | `"post"` |
+| `depression_pre` | `"depression"` | `"pre"` |
+| `depression_post` | `"depression"` | `"post"` |
+
+## Cómo funciona `names_to` — qué hacer con cada trozo
+
+`names_to` es un **vector**. Cada posición se corresponde con un grupo de captura, en orden.
+
+```
+names_to = c(".value", "timepoint")
+            ↑          ↑
+            │          └── posición 2 → grupo 2 → crea columna "timepoint" con valores pre/post
+            │
+            └── posición 1 → grupo 1 → ¡los valores ("anxiety", "depression")
+                                       se convierten en NOMBRES DE COLUMNA!
+```
+
+::: {.callout-important}
+## La palabra clave mágica `.value`
+
+`.value` le dice a `pivot_longer`: **"el contenido de este grupo NO es una etiqueta — se convierte en el NOMBRE de una columna de valores"**.
+
+Sin `.value`, todos los números se apilarían en una sola columna `value` y tendríamos una columna extra `variable` con etiquetas "anxiety" y "depression". Con `.value`, cada constructo tiene su propia columna.
+:::
+
+## Comparación: con y sin `.value`
+
+### Sin `.value` (formato totalmente largo)
+
+```{r}
+#| label: pivot-sin-value
+
+df |>
+  pivot_longer(
+    cols          = -patient_id,
+    names_pattern = "(.*)_(pre|post)",
+    names_to      = c("variable", "timepoint"),  # ambos como columnas de etiquetas
+    values_to     = "score"                       # los números van aquí
+  )
+```
+
+→ 8 filas, columnas `variable` y `score` separadas.
+
+### Con `.value` (formato semi-largo, lo que queremos)
+
+```{r}
+#| label: pivot-con-value
+
+df |>
+  pivot_longer(
+    cols          = -patient_id,
+    names_pattern = "(.*)_(pre|post)",
+    names_to      = c(".value", "timepoint")     # primera posición es .value
+  )
+```
+
+→ 4 filas, columnas `anxiety` y `depression` separadas.
+
+::: {.callout-tip}
+## ¿Cuándo cuál?
+
+- **Sin `.value`** (totalmente largo): mejor para `ggplot` cuando quieres un `facet_wrap(~ variable)` que muestre los constructos en facets distintos.
+- **Con `.value`** (semi-largo): mejor para análisis estadísticos donde cada DV se modela por separado: `aov_ez(dv = "anxiety", ...)`, `aov_ez(dv = "depression", ...)`.
+:::
+
+---
+
+# Aplicación al dataset completo
+
+Ahora aplicamos exactamente la misma lógica al ensayo clínico (300 pacientes × 3 timepoints × 5 constructos).
+
+```{r}
+#| label: cargar-datos
+
+data_processed <- read_csv("../exercises/data/processed_data/preprocessed_data.csv")
+
+# inspeccionar las columnas que vamos a pivotar
+data_processed |>
+  select(matches("_(pre|post|followup)$")) |>
+  names()
+```
+
+::: {.callout-warning}
+## Cuidado: variables derivadas
+
+El dataset tiene dos columnas que también acaban en `_post` o `_followup` pero que **NO son medidas repetidas** de un constructo:
+
+- `mejora_followup` (variable derivada)
+- `gravedad_post` (variable categórica)
+
+Si las incluimos en el pivot, los grupos de captura las atrapan y aparecerán como constructos falsos. Tenemos que **listar explícitamente** los 5 constructos válidos.
+:::
+
+## El pivot completo
+
+```{r}
+#| label: pivot-completo
+
+data_long <- data_processed |>
+  pivot_longer(
+    # cols = qué columnas apilar
+    # ^(...)_(...)$ ancla inicio y fin para evitar mejora_followup y gravedad_post
+    cols          = matches("^(anxiety|depression|wellbeing|loneliness|self_esteem)_(pre|post|followup)$"),
+
+    # names_pattern = cómo partir cada nombre en dos trozos
+    # (.*) captura cualquier cosa antes del _
+    # (pre|post|followup) captura uno de los 3 momentos al final
+    names_pattern = "(.*)_(pre|post|followup)",
+
+    # names_to = qué hacer con cada trozo capturado
+    # .value -> el primer trozo es nombre de columna nueva (anxiety, depression, ...)
+    # timepoint -> el segundo trozo va a una columna "timepoint" con pre/post/followup
+    names_to      = c(".value", "timepoint")
+  ) |>
+  # opcional: ordenar el factor cronológicamente (útil para análisis y plots)
+  mutate(timepoint = factor(timepoint, levels = c("pre", "post", "followup")))
+
+data_long
+```
+
+## Alternativa con `starts_with()` (sin regex en `cols`)
+
+El regex en `cols` (`matches("^(anxiety|depression|...)_(pre|post|followup)$")`) es potente pero un poco intimidante. Como ya conocemos `starts_with()` del Día 3, podemos usarlo en su lugar — **el resultado es idéntico**:
+
+```{r}
+#| label: pivot-starts-with
+
+data_long_v2 <- data_processed |>
+  pivot_longer(
+    # cols = qué columnas apilar — listamos los 5 constructos con starts_with()
+    cols          = c(starts_with("anxiety"),
+                      starts_with("depression"),
+                      starts_with("wellbeing"),
+                      starts_with("loneliness"),
+                      starts_with("self_esteem")),
+
+    # names_pattern = cómo partir cada nombre en dos trozos
+    names_pattern = "(.*)_(pre|post|followup)",
+
+    # names_to = qué hacer con cada trozo capturado
+    names_to      = c(".value", "timepoint")
+  ) |>
+  mutate(timepoint = factor(timepoint, levels = c("pre", "post", "followup")))
+
+# verificar que el resultado es idéntico
+identical(data_long, data_long_v2)
+```
+
+::: {.callout-tip}
+## ¿Cuál prefieres?
+
+- **`matches("regex")`** — más compacto, pero requiere saber regex.
+- **`starts_with()`** — más verboso (5 líneas en vez de 1), pero **mucho más legible** para alguien que lee el código por primera vez.
+
+Para el curso, `starts_with()` es probablemente la mejor opción porque ya lo viste en Día 3 y se entiende a primera vista. El regex queda como herramienta avanzada para cuando los nombres no siguen un patrón tan limpio.
+:::
+
+::: {.callout-note}
+## Detalle importante
+
+Aunque cambiemos `cols`, **`names_pattern` sigue necesitando regex** para partir cada nombre en sus dos trozos (constructo + timepoint). El regex es ineludible aquí — pero es muy simple: solo `(.*)` y `(pre|post|followup)`.
+:::
+
+## Verificación
+
+```{r}
+#| label: verificacion
+
+# 300 pacientes x 3 timepoints = 900 filas
+nrow(data_long)
+
+# las 5 columnas de constructos están separadas
+data_long |>
+  select(patient_id, timepoint, anxiety, depression, wellbeing, loneliness, self_esteem) |>
+  head()
+
+# verificar que cada paciente tiene 3 timepoints
+data_long |>
+  count(patient_id) |>
+  count(n)
+```
+
+## Listo para análisis
+
+Ahora `data_long` está listo para cualquier análisis de medidas repetidas o mixto:
+
+```{r}
+#| label: ejemplo-anova
+#| eval: false
+
+library(afex)
+
+# ANOVA mixto sobre anxiety
+aov_ez(
+  id      = "patient_id",
+  dv      = "anxiety",
+  data    = data_long,
+  within  = "timepoint",
+  between = "group"
+)
+
+# ANOVA mixto sobre depression — mismo data_long, distinta dv
+aov_ez(
+  id      = "patient_id",
+  dv      = "depression",
+  data    = data_long,
+  within  = "timepoint",
+  between = "group"
+)
+```
+
+---
+
+# Resumen
+
+| Pieza | Qué hace |
+|---|---|
+| `cols` | Selecciona qué columnas se apilan. Sé explícito para evitar capturar variables derivadas que también acaban en `_post`/`_followup`. |
+| `names_pattern` | Regex con `( )` que parte cada nombre de columna en N trozos. |
+| `names_to` | Vector que dice qué hacer con cada trozo. La palabra clave `.value` significa "este trozo es el nombre de una columna nueva, no una etiqueta". |
+
+**Regla mnemotécnica:**
+
+- Tantos `( )` en `names_pattern` como elementos en `names_to`
+- Pon `.value` donde quieras que el trozo capturado se convierta en columna
+- Pon `"texto"` donde quieras que el trozo se convierta en valor de una columna etiqueta
+
+---
+
+# Apéndice: ¿Qué es un regex? {#sec-regex}
+
+**Regex** (de *regular expression*, "expresión regular") es una **mini-lengua para describir patrones de texto**. En lugar de buscar una cadena exacta, describes la *forma* del texto que te interesa.
+
+**Ejemplo en lenguaje natural:**
+
+> "Quiero las columnas que empiezan con `anxiety` o `depression`, seguido de un `_`, seguido de `pre`, `post` o `followup`."
+
+**Misma idea en regex:**
+
+```
+^(anxiety|depression)_(pre|post|followup)$
+```
+
+Cada símbolo tiene un significado:
+
+| Símbolo | Significado | Ejemplo |
+|---|---|---|
+| `^` | el texto **empieza** aquí | `^anxiety` solo encaja con cadenas que empiezan con "anxiety" |
+| `$` | el texto **termina** aquí | `post$` solo encaja con cadenas que terminan en "post" |
+| `.` | **un carácter** cualquiera (letra, número, símbolo, ...) | `a.x` encaja con "a1x", "abx", "a_x", ... |
+| `*` | **cero o más** veces lo anterior | `a*` encaja con "", "a", "aa", "aaa", ... |
+| `.*` | **cualquier cosa** (cero o más caracteres de cualquier tipo) | `.*` encaja con "", "hola", "anxiety_pre", ... |
+| `(...)` | **grupo de captura** — guarda el trozo coincidente para usarlo después | en pivot_longer, cada `(...)` es un trozo que extraemos |
+| `(a|b)` | **alternativa** — `a` o `b` (o lo que pongas separado por `|`) | `(pre|post)` encaja con "pre" o "post" |
+
+::: {.callout-tip}
+## Los 6 símbolos que necesitas para este documento
+
+Si recuerdas estos seis, entiendes todo el regex que aparece aquí:
+
+- **`^`** y **`$`** — anclas (empieza/termina)
+- **`.`** — un carácter cualquiera
+- **`*`** — repetir lo anterior cero o más veces
+- **`( )`** — grupo de captura
+- **`|`** — "o" (alternativa)
+
+Combinándolos: **`^(.*)_(pre|post)$`** = "un nombre que empieza por *cualquier cosa*, luego un `_`, luego `pre` o `post`, y ahí se acaba".
+:::
+
+::: {.callout-note}
+## ¿Dónde más aparece regex en R?
+
+- **`stringr`**: `str_detect()`, `str_replace()`, `str_extract()` — todas aceptan regex
+- **`tidyselect`**: `matches("regex")` para seleccionar columnas
+- **`grepl()`, `gsub()`** en base R
+- **`pivot_longer()`** con `names_pattern`
+
+No hace falta dominar regex. Para el 90% de los casos en análisis de datos, los 6 símbolos de arriba son suficientes.
+:::

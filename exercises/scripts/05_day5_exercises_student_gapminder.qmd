@@ -1,0 +1,131 @@
+---
+title: "Informe sobre desarrollo y esperanza de vida"
+author: "Tu nombre"
+format:
+  html:
+    toc: true
+    embed-resources: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+# Informe sobre desarrollo y esperanza de vida
+
+## Carga y exploración de los datos
+
+En este apartado:
+
+- Carga los paquetes necesarios
+- Explora la estructura de la base de datos
+- Muestra las primeras filas
+
+```{r}
+# En caso de no tenerlo instalado
+# install.packages("tidyverse")
+# install.packages("gapminder")
+# install.packages("easystats")
+
+# Escribe aquí el código para:
+# 1. Cargar tidyverse
+# 2. Cargar gapminder
+# 3. Cargar easystats
+# 4. Mostrar la estructura con glimpse()
+# 5. Mostrar las primeras filas con head()
+```
+
+## Esperanza de vida media por continente
+
+En este apartado:
+
+- agrupa los datos por continente
+- calcula la esperanza de vida media
+- muestra el resultado como tabla
+
+```{r}
+# Crea un objeto con la esperanza de vida media por continente
+# Usa group_by(continent) y summarise()
+# Después, muestra la tabla con knitr::kable()
+```
+
+## Los 10 países más longevos
+
+En este apartado:
+
+- parte del objeto anterior o crea uno nuevo por país
+- ordena de mayor a menor esperanza de vida
+- muestra los 10 países más longevos
+
+```{r}
+# Crea un objeto con la esperanza de vida media por país
+# Ordénalo de mayor a menor
+# Selecciona los 10 primeros
+# Muestra la tabla
+```
+
+## Los 10 países menos longevos
+
+En este apartado:
+
+- usa la tabla por país
+- ordena de menor a mayor esperanza de vida
+- muestra los 10 países menos longevos
+
+```{r}
+# Ordena la tabla de esperanza de vida por país
+# de menor a mayor y muestra los 10 primeros
+```
+
+## Esperanza de vida media por continente
+
+En este apartado:
+
+- vuelve a calcular la esperanza de vida media por continente
+- muestra el resultado como tabla
+
+```{r}
+# Agrupa por continente
+# Calcula la media de lifeExp
+# Guarda el resultado en un objeto
+# Muestra la tabla con knitr::kable()
+```
+
+## Relación entre PIB per cápita y esperanza de vida
+
+Primero, escribe una frase con **código en línea** (`inline code`) que reporte la relación entre `lifeExp` y `gdpPercap` usando `cor.test()` y `report()`.
+
+
+Escribe aquí una frase con inline code usando: **_r ..._**
+
+Ahora, crea un gráfico que:
+
+- muestre una nube de puntos entre `gdpPercap` y `lifeExp`
+- añada una línea de tendencia
+- use una escala logarítmica en el eje X
+- incluya título y etiquetas en los ejes
+
+```{r}
+# Haz un gráfico con ggplot2
+# Eje X: gdpPercap
+# Eje Y: lifeExp
+# Añade puntos con geom_point()
+# Añade una línea suavizada con geom_smooth(method = "loess")
+# Usa scale_x_log10()
+# Añade labs() y theme_classic()
+```
+
+## Resumen general
+
+En este apartado:
+
+- calcula la esperanza de vida media global
+- guarda el resultado en un objeto
+- escribe una frase con **código en línea** para mostrarlo en el texto
+
+```{r}
+# Calcula la esperanza de vida media global
+# Guarda el resultado en un objeto llamado vida_global
+```
+
+La esperanza de vida media global en esta base de datos es de **_r ..._** años.
